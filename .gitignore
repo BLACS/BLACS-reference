@@ -1,0 +1,64 @@
+# Emacs
+
+# -*- mode: gitignore; -*-
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Org-mode
+.org-id-locations
+*_archive
+
+# AUCTeX auto folder
+auto/
+
+# OS X
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Files that might appear in the root of a volume
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+
+# Directories potentially created on remote AFP share
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+#Linux
+
+*~
+
+# LaTeX
+
+*.out
+*.toc
+*.aux
+*.log
+
+# Ocsigen and Ocaml
+*.local
+*~
+*.cmo
+*.cmx
+*.cmi
+*.cma
+*.cmxa
+*.cmxs
+*.a
+*.o
+local
+_server
+_build
