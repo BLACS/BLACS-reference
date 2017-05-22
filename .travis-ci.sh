@@ -24,6 +24,10 @@ eval $(opam config env)
 
 opam install ocamlfind ppx_deriving ppx_deriving_yojson
 
+cd -
+
+echo -en "travis_fold:end:prepare.ci\r"
+
 make
 
 ./blacs
