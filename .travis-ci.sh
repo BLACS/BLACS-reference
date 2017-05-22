@@ -1,24 +1,29 @@
-# Edit this for your own project dependencies
-OPAM_DEPENDS="ocamlbuild ocamlfind ppx_deriving ppx_deriving_yojson"
+echo -en "travis_fold:start:prepare.ci\r"
+# If a fork of these scripts is specified, use that GitHub user instead
+fork_user=${FORK_USER:-ocaml}
 
-case "$OCAML_VERSION,$OPAM_VERSION" in
-4.02.3,1.2.2) ppa=avsm/ocaml42+opam12 ;;
-*) echo Unknown $OCAML_VERSION,$OPAM_VERSION; exit 1 ;;
-esac
+# If a branch of these scripts is specified, use that branch instead of 'master'
+fork_branch=${FORK_BRANCH:-master}
 
-echo "yes" | sudo add-apt-repository ppa:$ppa
-sudo apt-get update -qq
-sudo apt-get install -qq ocaml ocaml-native-compilers camlp4-extra opam
+### Bootstrap
+
+set -uex
+
+get() {
+  wget https://raw.githubusercontent.com/${fork_user}/ocaml-ci-scripts/${fork_branch}/$@
+}
+
+TMP_BUILD=$(mktemp -d 2>/dev/null || mktemp -d -t 'citmpdir')
+cd ${TMP_BUILD}
+
+get .travis-ocaml.sh
+
+sh .travis-ocaml.sh
 export OPAMYES=1
-export OPAMVERBOSE=1
-echo OCaml version
-ocaml -version
-echo OPAM versions
-opam --version
-opam --git-version
+eval $(opam config env)
 
-opam init 
-opam install ${OPAM_DEPENDS}
-eval `opam config env`
+opam install ocamlfind ppx_deriving ppx_deriving_yojson
+
 make
+
 ./blacs
