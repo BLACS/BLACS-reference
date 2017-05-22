@@ -1,0 +1,3 @@
+<src>: include
+<src/*>: package(ppx_deriving_yojson)
+<src/*>: package(ppx_deriving)
