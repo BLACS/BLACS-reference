@@ -49,7 +49,6 @@ Temporary Items
 *.log
 
 # Ocsigen and Ocaml
-*.local
 *~
 *.cmo
 *.cmx
