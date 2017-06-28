@@ -1,6 +1,5 @@
 open Value
 
-
 module Key = struct
 
   type t = Nativeint.t * string
@@ -31,8 +30,11 @@ let values time tag cell   =
 let value predicate time tag cell =
   let vlist = values time tag cell in
   let l =  List.filter (fun ((_,t),_) -> tag = t) vlist in
-  snd ((function [] -> List.hd (List.filter predicate vlist)
-           | h::_ -> h) l)
+  try
+    snd ((function [] -> List.hd (List.filter predicate vlist)
+                 | h::_ -> h) l)
+  with
+    _ -> Value.none
 
 let write time tag value cell =
   CellMap.add (time,tag) value cell

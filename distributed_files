@@ -1,8 +1,0 @@
-Makefile
-Makefile.config
-Makefile.generic
-Makefile.local
-_tags
-AUTHORS
-src
-src/blacs.ml

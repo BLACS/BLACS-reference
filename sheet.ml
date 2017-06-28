@@ -34,14 +34,30 @@ let read_seq disam time tag origin width length sheet =
   let sup = match origin with
       {row=r; col=c} ->
       coords (r+ pred width) (c+ pred length) in
-  let p coords _ =
-    lteq origin coords && lteq coords sup  in
-  let m = filter p sheet in
-  let b = bindings m in
-  let values =
-    function (coords,cell) ->
-      (coords,Cell.value disam time tag cell) in
-  List.map values b
+  let coordList  =
+    let rec aux currentCoord coordList =  
+      match currentCoord with
+        c when c = sup -> c::coordList
+      | c when lteq origin c && lteq c sup ->
+        aux (succ c width length) (c::coordList)
+      | _ -> assert false in
+    aux origin [] in
+  List.map
+    (fun c ->
+       try
+         let cell = find c sheet  in
+         c,Cell.value disam time tag cell
+       with
+         Not_found ->
+         c,Value.none) coordList
+  (* let p coords _ = *)
+  (*   lteq origin coords && lteq coords sup     in *)
+  (* let m = filter p sheet                      in *)
+  (* let b = bindings m                          in *)
+  (* let values = *)
+  (*   function (coords,cell) -> *)
+  (*     (coords,Cell.value disam time tag cell) in *)
+  (* List.map values b *)
 
 let string_of_cell coords sv acc =
   let soi = string_of_int in
@@ -56,7 +72,7 @@ let filter_coords p s =
   fst @@ List.split b
 
 let dependencies formula s = match formula with 
-    {ty=TyCount; data=[r1;c1;r2;c2;_]} ->
+    {ty=TyCount; data=Some [r1;c1;r2;c2;_]} ->
     let inf = coords r1 c1 in
     let sup = coords r2 (c2+1) in
     let p c _ = lteq inf c && lteq c sup in
@@ -75,7 +91,7 @@ let dependents disam time tag r0 c0 s =
   let p' r1 c1 r2 c2 = (r1,c1) <= (r0,c0) && (r0,c0) <= (r2,c2) in
   let rec aux coords_formulae_list acc =
     match coords_formulae_list with
-      (c, {ty=TyCount; data=[r1;c1;r2;c2;_]})::t
+      (c, {ty=TyCount; data=Some [r1;c1;r2;c2;_]})::t
       when p' r1 c1 r2 c2  -> aux t (c::acc)
     |[] -> acc
     |_::t -> aux t acc in
