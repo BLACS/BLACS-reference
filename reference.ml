@@ -105,8 +105,10 @@ let readPostBody ?(length = 4096) body =
   Ocsigen_stream.string_of_stream length contentStream
 
 let hash name body =
+  let open Cryptokit in
+  let hex s = transform_string (Hexa.encode()) s in
   let s = name ^ body in
-  Cryptokit.(hash_string (Hash.sha2 512) s)
+    hex (hash_string (Hash.sha2 256) s)
 
 let getSheet name =
     try
@@ -183,7 +185,8 @@ let writeHandler name (contentType, someBody) =
              let wrq    =
                match writeRQ_of_yojson yojson with
                  Result.Ok(wrq) -> wrq
-               | Result.Error(_) -> assert false
+               | Result.Error(s) ->
+                 assert false
              in
              let time,sheet = getSheet name in
              let sheet =
@@ -210,14 +213,16 @@ let readHandler name (contentType, someBody) =
            let yojson = Yojson.Safe.from_string str        in
            let rrq =
              match readRQ_of_yojson yojson with
-               Result.Ok(rrq) -> rrq
+               Result.Ok(rrq) ->
+               rrq
              | Result.Error(str) ->
                assert false
            in
            let h = hash name str in
            let date =
-             Unix.gettimeofday () +. 0.01
-             *. (float_of_int rrq.width) *. (float_of_int rrq.length)    in
+             Unix.gettimeofday () +.
+             0.01 *. (float_of_int rrq.width) *.
+             (float_of_int rrq.length)                                   in
            let%lwt  () = addReadResponse name rrq h                      in
            let rp   = readPromise (date,h)                               in
            let json = Yojson.Safe.(to_string (readPromise_to_yojson rp)) in

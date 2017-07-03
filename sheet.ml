@@ -23,7 +23,9 @@ let write time tag value coords sheet =
 let write_seq time tag origin width length values sheet =
   let f (sheet,coord) value =
     let s =  write time tag value coord sheet in
-    (s, Coordinates.succ coord width length) in
+    try
+      (s, Coordinates.succ origin width length coord)
+    with No_successor -> (s,coord) in
   fst (List.fold_left f (sheet,origin) values)
 
 let read time tag coords sheet =
@@ -39,7 +41,7 @@ let read_seq disam time tag origin width length sheet =
       match currentCoord with
         c when c = sup -> c::coordList
       | c when lteq origin c && lteq c sup ->
-        aux (succ c width length) (c::coordList)
+        aux (succ origin width length c) (c::coordList)
       | _ -> assert false in
     aux origin [] in
   List.map
