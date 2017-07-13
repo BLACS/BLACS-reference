@@ -195,7 +195,7 @@ let writeHandler name (contentType, someBody) =
              in
              HT.replace sheets name (time,sheet);
              sendSuccess ())
-          (fun _ -> sendError ~code:400 "Wbl")
+          (fun _ -> sendError ~code:400 "Failure")
 
 let readHandler name (contentType, someBody) =
   if not (checkContentType ~mimeType:jsonMimeType contentType)
@@ -227,7 +227,7 @@ let readHandler name (contentType, someBody) =
            let rp   = readPromise (date,h)                               in
            let json = Yojson.Safe.(to_string (readPromise_to_yojson rp)) in
            sendJson ~code: 200 json)      
-        (fun _ -> sendError ~code:400 "Wbl")
+        (fun _ -> sendError ~code:400 "Failure")
         
 let () =
   Eliom_registration.Html.register mainService mainHandler;
