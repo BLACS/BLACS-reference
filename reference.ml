@@ -9,100 +9,74 @@ module HT = Hashtbl
 
 (*** Data types ***)
 
-type sht              = Nativeint.t * Value.t Cell.CellMap.t Sheet.SheetMap.t
+type sht              = Nativeint.t * Cell.t CellMap.CMap.t Sheet.SheetMap.t
 
-type readResponse     = string * string
+type read_response     = string * string
 
-type sheetResponse    = (string, ((string, string) HT.t)) HT.t
+type sheet_response    = (string, ((string, string) HT.t)) HT.t
 
-type error            = {errorMessage : string}  [@@ deriving yojson]
-
-type writeRQ          = {tag          : string        ;
-                         time         : Nativeint.t   ;
-                         origin       : Coordinates.t ;
-                         length       : int           ;
-                         width        : int           ;
-                         values       : Value.t list  } [@@deriving yojson]
-
-type readRQ           = {tag          : string        ;
-                         time         : Nativeint.t   ;
-                         origin       : Coordinates.t ;
-                         width        : int           ;
-                         length       : int           ;
-                         default      : string option } [@@deriving yojson]
-
-type locatedValue     = {coords       : Coordinates.t ;
-                         value        : Value.t       } [@@deriving yojson]
-
-type locatedValueList =  locatedValue list  [@@deriving yojson]
-
-type readPromise      =  {date        : float         ;
-                          hash        : string        } [@@deriving yojson]
-
-let locatedValue      = fun (c,v)   -> { coords=c ; value=v  }
-
-let readPromise       = fun (d,h) ->   { date = d ; hash = h }
+type error            = {error_message : string}  [@@ deriving yojson]
 
 (*** Value **)
 
 let sheets: (string, sht) HT.t = HT.create 10
 
-let sheetResponses: sheetResponse = HT.create 10
+let sheet_responses: sheet_response = HT.create 10
 
 (*** Services ***)
 
-let mainService  =
+let main_service  =
   Eliom_service.create
     ~path:(Eliom_service.Path [])
     ~meth:(Eliom_service.Get Eliom_parameter.unit)
     ()
     
-let timeService  =
+let time_service  =
   Eliom_service.create
     ~path: (Eliom_service.Path ["time"])
     ~meth: (Eliom_service.Get Eliom_parameter.(suffix (string "name")))
     ()
 
-let readResponseService =
+let read_sesponse_service =
   Eliom_service.create
     ~path: (Eliom_service.Path [])
     ~meth: (Eliom_service.Get Eliom_parameter.(suffix (string "name" ** string "hash")))
     ()
 
-let sheetPostService path =
+let sheet_post_service path =
   Eliom_service.create
     ~path: (Eliom_service.Path [path])
     ~meth: (Eliom_service.Post (Eliom_parameter.(suffix (string "name")),
                                 Eliom_parameter.raw_post_data ))
     ()
 
-let writeService = sheetPostService "write"
+let write_service = sheet_post_service "write"
 
-let readService  = sheetPostService "read"
+let read_service   = sheet_post_service "read"
     
 (**** Handler helpers ****)
     
-let jsonMimeType = "application/json"
+let json_mime_type = "application/json"
 
-let sendJson ~code json =
-  Eliom_registration.String.send ~code (json, jsonMimeType)
+let send_json ~code json =
+  Eliom_registration.String.send ~code (json, json_mime_type)
 
-let sendError ~code errorMessage =
-  let json = Yojson.Safe.to_string (error_to_yojson {errorMessage}) in
-  sendJson ~code json
+let send_error ~code error_message =
+  let json = Yojson.Safe.to_string (error_to_yojson {error_message}) in
+  send_json ~code json
 
-let sendSuccess () =
-  Eliom_registration.String.send ~code:200 ("", jsonMimeType)
+let send_success () =
+  Eliom_registration.String.send ~code:200 ("", json_mime_type)
 
-let checkContentType ~mimeType contentType =
-  match contentType with
+let check_content_type ~mime_type content_type =
+  match content_type with
   | Some ((type_, subtype), _)
-      when (type_ ^ "/" ^ subtype) = mimeType -> true
+      when (type_ ^ "/" ^ subtype) = mime_type -> true
   | _ -> false
 
-let readPostBody ?(length = 4096) body =
-  let contentStream = Ocsigen_stream.get body in
-  Ocsigen_stream.string_of_stream length contentStream
+let read_post_body ?(length = 4096) body =
+  let content_stream = Ocsigen_stream.get body in
+  Ocsigen_stream.string_of_stream length content_stream
 
 let hash name body =
   let open Cryptokit in
@@ -110,7 +84,7 @@ let hash name body =
   let s = name ^ body in
     hex (hash_string (Hash.sha2 256) s)
 
-let getSheet name =
+let get_sheet name =
     try
       HT.find sheets name
     with
@@ -119,126 +93,121 @@ let getSheet name =
       HT.add sheets name (t,s);
       t,s
 
-let getResponses name =
+let get_responses name =
     try
-      HT.find sheetResponses name
+      HT.find sheet_responses name
     with
       Not_found ->
       let responses = HT.create 10 in
-      HT.add sheetResponses name responses;
+      HT.add sheet_responses name responses;
       responses
 
-let addReadResponse name rrq hash =
+let add_read_response name rrq hash =
   Lwt.return (
-  let _,sheet = getSheet name in
-  let values =
+  let _,sheet = get_sheet name in
+  let values = ReadRequest.(
     Sheet.read_seq
       (fun x -> true)
       rrq.time rrq.tag
       rrq.origin rrq.width
-      rrq.length sheet
+      rrq.length sheet)
   in
-  let values = List.map locatedValue values      in
-  let yojson = locatedValueList_to_yojson values in
-  let json   = Yojson.Safe.to_string yojson      in
-  let responses = getResponses name in
+  let values = List.map LocatedCell.located_cell values   in
+  let json = LocatedCell.located_cell_list_to_json values in
+  let responses = get_responses name in
   HT.add responses hash json)
 
 (*** Handlers ***)
 
-let mainHandler () () =
+let main_handler () () =
   Eliom_content.Html.D.(
   Lwt.return
     (html
        (head (title (pcdata "BLACS")) [])
        (body [h1 [pcdata "Welcome to BLACS"]])))
 
-let timeHandler name () =
-  let time,sheet = getSheet name in
+let time_handler name () =
+  let time,sheet = get_sheet name in
   HT.replace sheets name ((Nativeint.succ time), sheet);
   let json = Nativeint.to_string time in
-  sendJson ~code:200 json
+  send_json ~code:200 json
 
-let readResponseHandler (name,hash) () =
+let read_response_handler (name,hash) () =
   try
-    let responses = HT.find sheetResponses name in
+    let responses = HT.find sheet_responses name in
     let response  = HT.find responses hash      in
-    sendJson ~code:200 response
+    send_json ~code:200 response
   with
-  Not_found -> sendError ~code:404 "Response not found"
+  Not_found -> send_error ~code:404 "Response not found"
     
 
-let writeHandler name (contentType, someBody) =
-  if not (checkContentType ~mimeType:jsonMimeType contentType)
+let write_handler name (content_type, some_body) =
+  if not (check_content_type ~mime_type:json_mime_type content_type)
   then
-    sendError ~code:400 "Content-type is wrong, it must be JSON"
+    send_error ~code:400 "Content-type is wrong, it must be JSON"
   else
-    match someBody with
+    match some_body with
     | None ->
-      sendError ~code:400 "Body content is missing"
+      send_error ~code:400 "Body content is missing"
     | Some (body) ->
-      readPostBody body >>=
+      read_post_body body >>=
       fun str ->
         catch
           (fun () ->
-             let yojson = Yojson.Safe.from_string str in
-             let wrq    =
-               match writeRQ_of_yojson yojson with
-                 Result.Ok(wrq) -> wrq
-               | Result.Error(s) ->
-                 assert false
-             in
-             let time,sheet = getSheet name in
-             let sheet =
+             let wrq =
+               match WriteRequest.write_request_of_json str with
+                 Result.Ok x -> x
+               | Result.Error e -> failwith e in
+             let time,sheet = get_sheet name   in
+             let sheet = WriteRequest.(
                Sheet.write_seq wrq.time wrq.tag wrq.origin
-                 wrq.width wrq.length wrq.values sheet
+                 wrq.width wrq.length wrq.values sheet)
              in
              HT.replace sheets name (time,sheet);
-             sendSuccess ())
-          (fun _ -> sendError ~code:400 "Failure")
+             send_success ())
+          (fun _ -> send_error ~code:400 "Failure")
 
-let readHandler name (contentType, someBody) =
-  if not (checkContentType ~mimeType:jsonMimeType contentType)
+let read_handler name (content_type, some_body) =
+  if not (check_content_type ~mime_type:json_mime_type content_type)
   then
-    sendError ~code:400 "Content-type is wrong, it must be JSON"
+    send_error ~code:400 "Content-type is wrong, it must be JSON"
   else
-    match someBody with
+    match some_body with
     | None ->
-      sendError ~code:400 "Body content is missing"
+      send_error ~code:400 "Body content is missing"
     | Some (body) ->
-      readPostBody body >>=
+      read_post_body body >>=
       fun str ->
       catch
         (fun () ->
-           let yojson = Yojson.Safe.from_string str        in
            let rrq =
-             match readRQ_of_yojson yojson with
+             match ReadRequest.read_request_of_json str with
                Result.Ok(rrq) ->
                rrq
              | Result.Error(str) ->
                assert false
            in
            let h = hash name str in
-           let date =
+           let date = ReadRequest.(
              Unix.gettimeofday () +.
              0.01 *. (float_of_int rrq.width) *.
-             (float_of_int rrq.length)                                   in
-           let%lwt  () = addReadResponse name rrq h                      in
-           let rp   = readPromise (date,h)                               in
-           let json = Yojson.Safe.(to_string (readPromise_to_yojson rp)) in
-           sendJson ~code: 200 json)      
-        (fun _ -> sendError ~code:400 "Failure")
+             (float_of_int rrq.length))                             in
+           let%lwt  () = add_read_response name rrq h                 in
+           let rp   = ReadPromise.read_promise  ~date:date ~hash:h  in
+           let json = ReadPromise.read_promise_to_json rp           in
+           send_json ~code: 200 json)      
+        (fun _ -> send_error ~code:400 "Failure")
         
 let () =
-  Eliom_registration.Html.register mainService mainHandler;
+  Eliom_registration.Html.register main_service main_handler;
   
-  Eliom_registration.Any.register  timeService timeHandler;
+  Eliom_registration.Any.register  time_service time_handler;
 
-  Eliom_registration.Any.register  writeService writeHandler;
+  Eliom_registration.Any.register  write_service write_handler;
 
-  Eliom_registration.Any.register  readService readHandler;
+  Eliom_registration.Any.register  read_service read_handler;
 
-  Eliom_registration.Any.register  readResponseService readResponseHandler
+  Eliom_registration.Any.register  read_sesponse_service read_response_handler
 
 
 
