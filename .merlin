@@ -1,2 +1,3 @@
 S ./**
 B ./**
+PKG blacsapi lwt tyxml eliom ppx_deriving ppx_deriving_yojson cryptokit
