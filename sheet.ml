@@ -33,35 +33,31 @@ let read time tag coords sheet =
   let c = find coords sheet in
   CellMap.cells time tag c
 
-let read_seq disam time tag origin width length sheet =
+let read_seq filter disam time tag origin width length sheet =
   let succ_coord = Coordinates.next origin length width in
   let sup = match origin with
-      {row=r; col=c} ->
-      coords (r+ pred width) (c+ pred length) in
-  let coordList  =
-    let rec aux currentCoord coordList =  
-      match currentCoord with
-        c when c = sup -> c::coordList
-      | c when lteq origin c && lteq c sup ->
-        aux (succ_coord c) (c::coordList)
-      | _ -> assert false in
+      {col=c; row=r} -> coords (c + length - 1) (r + width - 1) in
+  let coord_list  =
+    let rec aux current_coord coord_list =  
+      match current_coord with
+        c when c = sup -> c::coord_list
+      | c when origin <= c && c <= sup ->
+        aux (succ_coord c) (c::coord_list)
+      | _ -> print_endline "caca"; flush_all (); assert false in
     aux origin [] in
-  List.map
-    (fun c ->
-       try
-         let cell_map = find c sheet  in
-         c,CellMap.cell disam time tag cell_map
-       with
-         Not_found ->
-         c,(Cell.cell Definition.none)) coordList
-  (* let p coords _ = *)
-  (*   lteq origin coords && lteq coords sup     in *)
-  (* let m = filter p sheet                      in *)
-  (* let b = bindings m                          in *)
-  (* let values = *)
-  (*   function (coords,cell) -> *)
-  (*     (coords,CellMap.value disam time tag cell) in *)
-  (* List.map values b *)
+  let l = List.map
+      (fun c ->
+         try
+           let cell_map = find c sheet  in
+           c,CellMap.cell disam time tag cell_map
+         with
+           Not_found ->
+             c,(Cell.cell Definition.none)) coord_list in
+  match filter with
+    None   -> l
+  | Some f -> 
+    List.filter f l
+
 
 let string_of_cell coords sv acc =
   let soi = string_of_int in
@@ -122,3 +118,10 @@ let string_of_sheet time tag s =
   let f c = (string_of_values @@ CellMap.cells time tag c) ^ " | " in 
   let ssheet = map f s in
   fold string_of_cell ssheet ""
+
+let dimensions sheet =
+  try
+    let {col=l; row=w} = fst (max_binding sheet) in
+    Dimensions.({length=(l+1); width=(w+1)})
+  with
+  Not_found -> Dimensions.({length=0; width=0})
