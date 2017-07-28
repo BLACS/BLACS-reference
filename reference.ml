@@ -80,9 +80,20 @@ let check_content_type ~mime_type content_type =
       when (type_ ^ "/" ^ subtype) = mime_type -> true
   | _ -> false
 
-let read_post_body ?(length = 16384) body =
+let string_of_stream s =
+  let open Ocsigen_stream in
+  let buff = Buffer.create (16384)  in
+  let rec aux s =
+    next s >>= function
+    | Finished _ -> Lwt.return buff
+    | Cont (s,f) ->
+      Buffer.add_string buff s; aux f
+  in
+  aux s >|= Buffer.contents
+
+let read_post_body body =
   let content_stream = Ocsigen_stream.get body in
-  Ocsigen_stream.string_of_stream length content_stream
+  string_of_stream content_stream
 
 let hash name body =
   let open Cryptokit in
@@ -187,7 +198,7 @@ let write_handler name (content_t, some_body) =
              let time,sheet = get_sheet name  in
              let sheet = WriteRequest.(
                Sheet.write_seq wrq.time wrq.tag wrq.origin
-                 wrq.width wrq.length wrq.values sheet)
+                 wrq.width wrq.length wrq.cells sheet)
              in
              HT.replace sheets name (time,sheet);
              send_success ())
