@@ -23,6 +23,23 @@ let sheets: (string, sht) HT.t = HT.create 10
 
 let sheet_responses: sheet_response = HT.create 10
 
+let () = Random.self_init ()
+
+let random_single_read ()  =
+  let s = Sheet.empty in
+  ignore (Sheet.read_seq
+            None (fun x -> true) (Random.nativeint (Nativeint.of_int 10000)) "alice"
+            (Coordinates.coords (Random.int 10000) (Random.int 10000)) 1 1 s)
+let profile_random_single_read () =
+  let t_0 = Unix.gettimeofday () in
+  (for i=1 to 1000000 do
+    random_single_read ();
+  done);
+  let t_1 = Unix.gettimeofday () in
+  (t_1 -. t_0) /. 1000000.
+
+let time_per_single_read = profile_random_single_read () 
+
 (*** Services ***)
 
 let main_service  =
@@ -132,14 +149,14 @@ let add_read_response name rrq hash =
     else None
   in
   Lwt.return (
-    let _,sheet = get_sheet name in
+    let sheet = snd (get_sheet name) in
     let values = ReadRequest.(
       Sheet.read_seq
         filter
         (fun x -> true)
         rrq.time rrq.tag
-        rrq.origin rrq.width
-        rrq.length sheet)
+        rrq.origin rrq.length
+        rrq.width sheet)
     in
     let open LocatedCell in
     let values    = List.map located_cell values     in
@@ -227,7 +244,7 @@ let read_handler name (content_t, some_body) =
            let h = hash name str in
            let date = ReadRequest.(
              Unix.gettimeofday () +.
-             0.01 *. (float_of_int rrq.width) *.
+             (time_per_single_read ** 2.) *. (float_of_int rrq.width) *.
              (float_of_int rrq.length))                             in
            let%lwt  () = add_read_response name rrq h               in
            let rp   = ReadPromise.read_promise  ~date:date ~hash:h  in

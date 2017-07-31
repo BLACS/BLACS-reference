@@ -20,7 +20,7 @@ let write time tag cell coords sheet =
     (add coords cell sheet)
 
 
-let write_seq time tag origin width length cells sheet =
+let write_seq time tag origin length width cells sheet =
   let f (sheet,coord) cell =
     let s =  write time tag cell coord sheet in
     let succ_coord = Coordinates.next origin length width in
@@ -33,7 +33,7 @@ let read time tag coords sheet =
   let c = find coords sheet in
   CellMap.cells time tag c
 
-let read_seq filter disam time tag origin width length sheet =
+let read_seq filter disam time tag origin length width sheet =
   let succ_coord = Coordinates.next origin length width in
   let sup = match origin with
       {col=c; row=r} -> coords (c + length - 1) (r + width - 1) in
