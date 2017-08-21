@@ -6,4 +6,5 @@ EXPOSE 8080
 COPY . reference
 RUN sudo chown -R opam:opam reference
 WORKDIR reference
+RUN make byte
 CMD make test.byte
