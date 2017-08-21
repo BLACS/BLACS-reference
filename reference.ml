@@ -138,14 +138,13 @@ let get_responses name =
 
 let filter_formulas lc =
   let def = Cell.((snd lc).definition) in
-  let ty  = Definition.(def.ty) in
-  Definition.(ty = TyCount)
+  let open Definition in
+  def.ty = TyCount
   
-
 let add_read_response name rrq hash =
   let filter =
-    if ReadRequest.(rrq.filter_formulas) then
-      Some filter_formulas
+    if ReadRequest.(rrq.filter_formulas)
+    then Some filter_formulas
     else None
   in
   Lwt.return (
@@ -215,7 +214,7 @@ let write_handler name (content_t, some_body) =
              let time,sheet = get_sheet name  in
              let sheet = WriteRequest.(
                Sheet.write_seq wrq.time wrq.tag wrq.origin
-                 wrq.width wrq.length wrq.cells sheet)
+                 wrq.length wrq.width wrq.cells sheet)
              in
              HT.replace sheets name (time,sheet);
              send_success ())

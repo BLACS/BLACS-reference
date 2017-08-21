@@ -43,7 +43,7 @@ let read_seq filter disam time tag origin length width sheet =
         c when c = sup -> c::coord_list
       | c when origin <= c && c <= sup ->
         aux (succ_coord c) (c::coord_list)
-      | _ -> print_endline "caca"; flush_all (); assert false in
+      | _ -> assert false in
     aux origin [] in
   let l = List.map
       (fun c ->
